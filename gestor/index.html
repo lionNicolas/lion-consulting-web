@@ -1,0 +1,526 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Gestor de Facturas</title>
+<meta name="description" content="Gestor de Facturas, de Lion Consulting: las facturas electrónicas de tus proveedores, del correo al software contable.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,400..800&family=Hanken+Grotesk:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: el escudo de Lion es la compuerta. Arriba, las facturas entran al escudo y salen como líneas contables; abajo, la historia fija al hacer scroll, una frase que se ilumina y el formulario. Alineado a la izquierda. */
+:root{
+  --black:#080807;
+  --black-2:#121110;
+  --black-3:#1c1a16;
+  --line-dark:#2b2822;
+  --paper:#f6f5f1;
+  --paper-2:#ecebe4;
+  --surface:#ffffff;
+  --line:#dfddd4;
+  --text:#141412;
+  --muted:#66655e;
+  --on-black:#a9a69b;
+  --gold:#c9aa52;
+  --gold-hi:#e2c675;
+  --gold-soft:#f3ecd6;
+  --gold-text:#7c6418;
+  --display:"Bricolage Grotesque","Hanken Grotesk","Segoe UI",system-ui,sans-serif;
+  --body:"Hanken Grotesk","Segoe UI",system-ui,-apple-system,sans-serif;
+  --ease-out:cubic-bezier(0.23,1,0.32,1);
+  --ease-in-out:cubic-bezier(0.77,0,0.175,1);
+  --wrap:1160px;--gutter:clamp(16px,4vw,40px);
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html{scrollbar-color:var(--gold) var(--black)}
+body{margin:0;background:var(--paper);color:var(--text);font-family:var(--body);font-size:1.0625rem;line-height:1.55;-webkit-font-smoothing:antialiased;caret-color:var(--gold-text)}
+::selection{background:var(--gold);color:var(--black)}
+a{color:inherit;text-underline-offset:.2em}
+:focus-visible{outline:2px solid var(--gold);outline-offset:3px;border-radius:6px}
+.wrap{max-width:var(--wrap);margin-inline:auto;padding-inline:var(--gutter)}
+h1,h2,h3{font-family:var(--display);font-weight:700;line-height:1.02;letter-spacing:-.03em;margin:0;text-wrap:balance}
+h2{font-size:clamp(2rem,4.6vw,3.5rem);font-variation-settings:"wdth" 84}
+p{margin:0}
+.num{font-variant-numeric:tabular-nums}
+.vh{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+/* Botones: respuesta inmediata al presionar */
+.btn{display:inline-flex;align-items:center;justify-content:center;font:600 1rem/1 var(--body);padding:1em 1.5em;border-radius:999px;border:1px solid transparent;text-decoration:none;cursor:pointer;transition:transform 160ms var(--ease-out),background-color 200ms ease,color 200ms ease,border-color 200ms ease}
+.btn:active{transform:scale(.97)}
+.btn-gold{background:var(--gold);color:var(--black)}
+.btn-dark{background:var(--black);color:#fff}
+.btn-line{border-color:var(--line-dark);color:#fff}
+@media (hover:hover) and (pointer:fine){
+  .btn-gold:hover{background:var(--gold-hi)}
+  .btn-dark:hover{background:var(--black-3)}
+  .btn-line:hover{border-color:var(--gold);color:var(--gold-hi)}
+}
+
+/* Barra superior */
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:30;background:rgba(8,8,7,.88);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid rgba(201,170,82,.14)}
+.top .wrap{display:flex;align-items:center;justify-content:space-between;gap:16px;padding-block:12px}
+.lion{display:flex;align-items:center;gap:11px;text-decoration:none;color:#fff;min-width:0}
+.lion svg{width:34px;height:auto;color:var(--gold);flex:none}
+.lion b{font-family:var(--display);font-weight:700;font-size:1.02rem;letter-spacing:.01em;white-space:nowrap}
+.top .btn{padding:.75em 1.2em;font-size:.92rem}
+
+/* Hero */
+.hero{background:var(--black);color:#fff;overflow:hidden;position:relative}
+.hero .wrap{position:relative;padding-block:clamp(48px,7vw,88px) 0;display:grid;gap:22px}
+.hero h1{font-size:clamp(2.6rem,6.6vw,5.2rem);font-variation-settings:"wdth" 78;letter-spacing:-.04em;line-height:.96;max-width:13ch}
+.hero .lede{font-size:clamp(1.1rem,1.6vw,1.3rem);color:#d6d3c8;max-width:34ch}
+.hero .ctas{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+.line{display:block;overflow:hidden;padding-bottom:.07em}
+.line > span{display:block}
+.js .line > span{transform:translateY(105%);transition:transform 900ms var(--ease-out)}
+.js .hero.ready .line > span{transform:none}
+.js .hero.ready .line:nth-child(2) > span{transition-delay:70ms}
+.js .hero.ready .line:nth-child(3) > span{transition-delay:140ms}
+.js .rise{opacity:0;transform:translateY(10px);transition:opacity 700ms var(--ease-out) 260ms,transform 700ms var(--ease-out) 260ms}
+.js .hero.ready .rise{opacity:1;transform:none}
+
+/* La compuerta: facturas entran al escudo y salen como cuentas */
+.gate{position:relative;margin-top:clamp(24px,4vw,44px);padding-block:clamp(24px,3vw,36px);border-top:1px solid var(--line-dark)}
+.gate-row{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:clamp(10px,2vw,28px)}
+.lane{overflow:hidden;min-width:0;-webkit-mask-image:linear-gradient(90deg,transparent,#000 18%,#000 82%,transparent);mask-image:linear-gradient(90deg,transparent,#000 18%,#000 82%,transparent)}
+.lane.in{-webkit-mask-image:linear-gradient(90deg,transparent,#000 22%,#000 78%,transparent 100%);mask-image:linear-gradient(90deg,transparent,#000 22%,#000 78%,transparent 100%)}
+.track{display:flex;gap:12px;width:max-content}
+.lane.in .track{animation:flowIn 26s linear infinite}
+.lane.out .track{animation:flowIn 26s linear infinite}
+@keyframes flowIn{from{transform:translateX(-50%)}to{transform:translateX(0)}}
+.inv,.acc{flex:none;display:grid;gap:2px;padding:12px 14px;border-radius:12px;font-size:.84rem;white-space:nowrap}
+.inv{background:var(--black-2);border:1px solid var(--line-dark);color:#e8e5db}
+.inv b{color:#fff;font-weight:600}
+.inv span,.acc span{color:var(--on-black);font-size:.78rem}
+.acc{background:#fbfaf6;color:var(--text)}
+.acc b{color:var(--gold-text);font-weight:700}
+.acc span{color:var(--muted)}
+.shield{position:relative;width:clamp(76px,10vw,120px);color:var(--gold);display:grid;place-items:center}
+.shield svg{width:100%;height:auto;display:block;filter:drop-shadow(0 18px 40px rgba(201,170,82,.25))}
+.shield::before{content:"";position:absolute;inset:-30%;background:radial-gradient(closest-side,rgba(201,170,82,.22),transparent);animation:breathe 4.8s ease-in-out infinite}
+@keyframes breathe{0%,100%{opacity:.55;transform:scale(.94)}50%{opacity:1;transform:scale(1.04)}}
+.gate-note{margin-top:14px;font-size:.8rem;color:#77756c}
+@media (hover:hover) and (pointer:fine){.gate:hover .track{animation-play-state:paused}}
+
+/* Historia fija */
+.story{background:var(--black);color:#fff;position:relative}
+.story .pin{display:grid;grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr);gap:clamp(24px,5vw,72px);align-items:center;padding-block:72px}
+.live .story{height:330vh}
+.live .story .pin{position:sticky;top:60px;height:calc(100vh - 60px);padding-block:24px}
+.captions{display:grid;gap:22px;min-width:0}
+.cap{display:grid;grid-template-columns:28px minmax(0,1fr);gap:14px;align-items:baseline;color:#fff;transition:opacity 400ms var(--ease-out),color 400ms ease}
+.cap .n{font-family:var(--display);font-weight:700;color:var(--gold);font-size:.95rem}
+.cap h3{font-size:clamp(1.4rem,2.6vw,2.15rem);font-variation-settings:"wdth" 86}
+.live .cap{opacity:.3}
+.live .cap.on{opacity:1}
+.bar{height:2px;background:var(--line-dark);border-radius:2px;overflow:hidden;margin-top:6px}
+.bar i{display:block;height:100%;width:100%;background:var(--gold);transform-origin:left;transform:scaleX(1)}
+.sample{font-size:.8rem;color:#77756c}
+
+.stage{position:relative;min-width:0;display:grid;gap:14px;font-size:.88rem}
+.mail{background:var(--black-2);border:1px solid var(--line-dark);border-radius:14px;padding:14px 16px;display:grid;grid-template-columns:34px minmax(0,1fr) auto;gap:12px;align-items:center}
+.mail .av{width:34px;height:34px;border-radius:50%;background:var(--gold-soft);color:var(--gold-text);display:grid;place-items:center;font-weight:700;font-size:.8rem}
+.mail b{display:block;color:#fff;font-weight:600}
+.mail span{color:var(--on-black);font-size:.8rem;overflow-wrap:anywhere}
+.mail em{font-style:normal;font-size:.75rem;color:var(--black);background:var(--gold);border-radius:999px;padding:4px 9px;font-weight:700}
+.doc{background:var(--black-2);border:1px solid var(--line-dark);border-radius:14px;padding:16px 18px;min-width:0}
+.doc .head{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;color:#fff;font-weight:600;margin-bottom:8px}
+.doc .head span{color:var(--on-black);font-weight:400;font-size:.8rem}
+.doc .r{display:flex;justify-content:space-between;gap:12px;color:#e6e3da;padding:3px 6px;border-radius:5px;transition:background-color 300ms ease,color 300ms ease}
+.doc .r.hl{background:rgba(201,170,82,.24);color:#fff}
+.doc .r.t{border-top:1px solid var(--line-dark);margin-top:4px;padding-top:7px;font-weight:600;color:#fff}
+.ledger{background:#fbfaf6;color:var(--text);border-radius:14px;padding:14px 16px;min-width:0;box-shadow:0 30px 60px -28px rgba(0,0,0,.85)}
+.ledger .head{font-weight:700;margin-bottom:6px;font-family:var(--display)}
+.tbl{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;min-width:340px}
+td{padding:6px 5px;border-bottom:1px solid #efede6;white-space:nowrap}
+td.a{color:var(--gold-text);font-weight:700}
+td.d{white-space:normal}
+td.v{text-align:right}
+tr.sum td{border-bottom:0;font-weight:700;padding-top:8px}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.chip{display:inline-flex;padding:5px 11px;border-radius:999px;font-weight:600;font-size:.8rem}
+.chip.ok{background:#e2f1e8;color:#1e6a44}
+.chip.gold{background:var(--gold-soft);color:var(--gold-text)}
+@media (max-width:860px){
+  .story .pin{grid-template-columns:minmax(0,1fr);align-content:center;gap:16px}
+  .live .story .pin{top:58px;height:calc(100vh - 58px)}
+  .captions{gap:10px}
+  .live .cap:not(.on){display:none}
+  .cap h3{font-size:1.35rem}
+  .stage{font-size:.8rem;gap:10px}
+}
+
+/* Frase que se ilumina */
+.statement{padding-block:clamp(96px,14vw,180px) clamp(64px,9vw,110px)}
+.statement p{font-family:var(--display);font-weight:700;font-size:clamp(2.1rem,5.6vw,4.6rem);line-height:1.03;letter-spacing:-.035em;font-variation-settings:"wdth" 80;max-width:15ch}
+.statement .w{transition:color 240ms ease}
+.live .statement .w{color:#cfccc0}
+.live .statement .w.lit{color:var(--text)}
+
+/* Tres hechos */
+.points{padding-block:0 clamp(96px,13vw,160px)}
+.points .grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:clamp(24px,3vw,44px)}
+.point{display:grid;gap:10px;border-top:2px solid var(--text);padding-top:20px}
+.point h3{font-size:1.55rem;letter-spacing:-.02em}
+.point p{color:var(--muted)}
+@media (max-width:760px){.points .grid{grid-template-columns:minmax(0,1fr)}}
+
+/* Integraciones */
+.soft{background:var(--paper-2);padding-block:clamp(72px,10vw,120px)}
+.soft .wrap{display:grid;gap:30px}
+.marks{display:flex;flex-wrap:wrap;gap:8px 44px;align-items:baseline;border-top:1px solid var(--line);padding-top:26px}
+.marks b{font-family:var(--display);font-size:clamp(1.6rem,3.8vw,2.8rem);letter-spacing:-.03em;font-variation-settings:"wdth" 84}
+.soft p{color:var(--muted);font-size:1.1rem;max-width:44ch}
+
+/* Seguridad: el escudo vuelve, ahora grande */
+.sec{background:var(--black);color:#fff;padding-block:clamp(80px,11vw,140px);position:relative;overflow:hidden}
+.sec .wrap{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,.8fr);gap:clamp(24px,5vw,72px);align-items:center}
+.sec .copy{display:grid;gap:22px}
+.sec p{color:var(--on-black);max-width:38ch;font-size:1.15rem}
+.pills{display:flex;flex-wrap:wrap;gap:10px}
+.pills span{border:1px solid var(--line-dark);border-radius:999px;padding:.6em 1.1em;color:#e6e3da;font-size:.95rem}
+.big-shield{color:var(--gold);justify-self:center;width:min(100%,320px)}
+.big-shield svg{width:100%;height:auto;display:block}
+.js.live .big-shield{clip-path:inset(100% 0 0 0);transition:clip-path 1200ms var(--ease-out)}
+.js.live .big-shield.in{clip-path:inset(0 0 0 0)}
+@media (max-width:760px){.sec .wrap{grid-template-columns:minmax(0,1fr)}.big-shield{width:160px;justify-self:start;order:-1}}
+
+/* Demo */
+.cta{padding-block:clamp(80px,11vw,140px)}
+.cta .wrap{display:grid;grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr);gap:clamp(28px,5vw,72px);align-items:start}
+.cta .copy{display:grid;gap:16px}
+.cta .copy p{color:var(--muted);font-size:1.15rem;max-width:30ch}
+@media (max-width:860px){.cta .wrap{grid-template-columns:minmax(0,1fr)}}
+form{background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:clamp(22px,3vw,32px);display:grid;gap:16px;min-width:0;box-shadow:0 24px 50px -36px rgba(20,20,18,.35)}
+.two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+@media (max-width:560px){.two{grid-template-columns:minmax(0,1fr)}}
+.field{display:grid;gap:6px}
+.field label{font-weight:600;font-size:.95rem}
+.field input,.field select{width:100%;font:inherit;font-size:1rem;padding:.8em .9em;border:1px solid #cfccc2;border-radius:10px;background:#fdfdfb;color:var(--text);transition:border-color 150ms ease,box-shadow 150ms ease}
+.field input::placeholder{color:#8d8b82}
+.field input:focus,.field select:focus{outline:none;border-color:var(--gold-text);box-shadow:0 0 0 3px rgba(201,170,82,.28)}
+.field.err input{border-color:#b3372f}
+.field .msg{color:#a3312a;font-size:.85rem}
+form .btn{justify-self:start}
+.done{display:grid;gap:14px}
+.done h3{font-size:1.6rem}
+.done p{color:var(--muted)}
+.done pre{margin:0;white-space:pre-wrap;background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:14px;font:inherit;font-size:.92rem}
+.done .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.plain{background:none;border:0;color:var(--muted);font:500 .9rem var(--body);cursor:pointer;text-decoration:underline;text-underline-offset:3px;padding:6px}
+.js .done:not([hidden]){animation:doneIn 320ms var(--ease-out)}
+@keyframes doneIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+footer{background:var(--black);color:var(--on-black);font-size:.9rem}
+footer .wrap{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;padding-block:34px}
+footer .lion svg{width:44px}
+
+/* Movimiento reducido: sin desplazamientos, se conservan los cambios de color */
+@media (prefers-reduced-motion:reduce){
+  .lane .track,.shield::before{animation:none!important}
+  .js .line > span,.js .rise{transform:none!important;opacity:1!important;transition:none!important}
+  .js.live .big-shield{clip-path:none!important}
+  .btn:active{transform:none}
+}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <g id="lion-mark">
+      <path transform="matrix(1,0,0,-1,76.6154,62.0959)" d="M0 0-15.429 7.844-9.201-2.586Z"/>
+      <path transform="matrix(1,0,0,-1,89.3496,62.0959)" d="M0 0 15.429 7.844 9.201-2.586Z"/>
+      <path transform="matrix(1,0,0,-1,112.0295,75.3259)" d="M0 0-11.504-6.181-12.764-15.558-15.708-23.858-28.796-17.368V-12.906L-17.892-5.908-22.869 .069-29.822-4.701-35.427 .182-40.512-5.704-30.932-12.906V-17.397L-43.136-23.505-45.945-16.025-47.205-6.415-58.709-.117-60.285 21.304-37.435 40.508-29.822 33.665-21.274 40.508 1.576 21.363ZM-20.322-26.982-29.822-35.077-38.479-26.982-39.665-28.932-41.455-25.688-29.822-19.713-16.821-26.328-18.506-28.932ZM22.117 36.646C21.222 37.342 .272 53.408-27.388 54.053L-29.822 38.71-31.699 54.041C-59.162 53.257-79.292 37.339-80.182 36.646L-81.262 35.805-81.134 34.441C-79.207 14.019-73.427-2.463-66.755-15.25L-54.467-12.225C-54.467-12.225-64.785-18.887-64.625-19.169-60.937-25.657-57.08-31.072-53.519-35.451-44.278-46.814-35.553-53.245-31.98-55.63L-29.822-40.234-26.816-56.109C-24.677-54.735-19.237-50.975-12.649-44.419-11.514-43.504-10.47-42.371-9.493-41.146-7.879-39.405-6.221-37.511-4.546-35.451-1.174-31.305 2.462-26.224 5.97-20.188 6.173-19.839-4.577-12.316-4.577-12.316L8.412-15.782C15.201-2.922 21.115 13.735 23.068 34.441L23.197 35.805Z"/>
+      <path transform="matrix(1,0,0,-1,131.4418,81.5289)" d="M0 0-3-6.641C-8.912-18.923-15.647-28.675-21.686-36.009-33.182-49.972-45.205-57.862-49.234-60.505-53.266-57.861-63.304-49.971-74.8-36.009-80.827-28.689-87.549-18.958-93.453-6.707L-96.518 .077C-102.008 13.056-106.442 28.506-108.355 46.56-102.402 50.681-78.108 66.12-48.321 66.166L-48.18 66.165C-18.448 66.12 5.902 50.677 11.869 46.558 9.952 28.469 5.505 12.994 0 0M17.191 50.518C16.024 51.411-11.787 72.393-48.175 72.449L-48.401 72.448C-84.742 72.359-112.511 51.411-113.676 50.518L-115.058 49.46-114.894 47.744C-110.84 5.464-93.445-23.418-79.568-40.202-64.469-58.463-49.234-67.865-49.234-67.865-49.234-67.865-32.017-58.463-16.918-40.202-3.041-23.418 14.354 5.464 18.408 47.744L18.573 49.46Z"/>
+    </g>
+    <g id="lion-reg">
+      <path transform="matrix(1,0,0,-1,128.7401,132.2139)" d="M0 0H1.675C2.277 0 2.599 .312 2.599 .902 2.599 1.471 2.148 1.729 1.589 1.729H0ZM-1.998 3.33H1.912C3.254 3.33 4.596 2.718 4.596 1.171 4.596 .344 4.21-.44 3.393-.752V-.773C4.199-.977 4.457-1.879 4.511-2.609 4.543-2.943 4.564-4.038 4.833-4.339H2.857C2.685-4.07 2.663-3.34 2.631-3.115 2.578-2.341 2.459-1.547 1.514-1.547H0V-4.339H-1.998Z"/>
+      <path transform="matrix(1,0,0,-1,130.1577,126.7994)" d="M0 0C-3.264 0-5.919-2.655-5.919-5.919-5.919-9.183-3.264-11.838 0-11.838 3.264-11.838 5.919-9.183 5.919-5.919 5.919-2.655 3.264 0 0 0M0-13.153C-3.989-13.153-7.234-9.908-7.234-5.919-7.234-1.93-3.989 1.315 0 1.315 3.989 1.315 7.234-1.93 7.234-5.919 7.234-9.908 3.989-13.153 0-13.153"/>
+    </g>
+  </defs>
+</svg>
+
+<header class="top">
+  <div class="wrap">
+    <a class="lion" href="../index.html" aria-label="Ir al sitio de Lion Consulting">
+      <svg viewBox="14 7 138 145" aria-hidden="true"><use href="#lion-mark" fill="currentColor"/></svg>
+      <b>Lion Consulting</b>
+    </a>
+    <a class="btn btn-gold" href="#demo">Agenda una demo</a>
+  </div>
+</header>
+
+<main id="inicio">
+  <section class="hero" id="hero">
+    <div class="wrap">
+      <h1><span class="line"><span>Facturas de</span></span><span class="line"><span>proveedores,</span></span><span class="line"><span>contabilizadas solas.</span></span></h1>
+      <p class="lede rise">El Gestor de Facturas lee las facturas electrónicas de tu correo y las deja listas para World Office o SAP Business One.</p>
+      <div class="ctas rise">
+        <a class="btn btn-gold" href="#demo">Agenda una demo</a>
+        <a class="btn btn-line" href="#historia">Mira cómo funciona</a>
+      </div>
+
+      <div class="gate rise" aria-label="Ejemplo: facturas que entran al Gestor y salen como cuentas contables">
+        <div class="gate-row">
+          <div class="lane in" aria-hidden="true"><div class="track num">
+            <div class="inv"><b>Distribuidora Andina</b><span>FE-4821 · $2.487.100</span></div>
+            <div class="inv"><b>Transportes Sabana</b><span>FE-77012 · $1.150.000</span></div>
+            <div class="inv"><b>Papelería El Cid</b><span>FV-1190 · $356.000</span></div>
+            <div class="inv"><b>Tecnoservicios S.A.S.</b><span>SETT-208 · $4.760.000</span></div>
+            <div class="inv"><b>Aseo Total Ltda.</b><span>FE-3305 · $612.400</span></div>
+            <div class="inv"><b>Distribuidora Andina</b><span>FE-4821 · $2.487.100</span></div>
+            <div class="inv"><b>Transportes Sabana</b><span>FE-77012 · $1.150.000</span></div>
+            <div class="inv"><b>Papelería El Cid</b><span>FV-1190 · $356.000</span></div>
+            <div class="inv"><b>Tecnoservicios S.A.S.</b><span>SETT-208 · $4.760.000</span></div>
+            <div class="inv"><b>Aseo Total Ltda.</b><span>FE-3305 · $612.400</span></div>
+          </div></div>
+          <div class="shield"><svg viewBox="14 7 138 145" role="img" aria-label="Escudo de Lion Consulting"><use href="#lion-mark" fill="currentColor"/></svg></div>
+          <div class="lane out" aria-hidden="true"><div class="track num">
+            <div class="acc"><b>519530</b><span>Papelería · Débito</span></div>
+            <div class="acc"><b>240810</b><span>IVA descontable · Débito</span></div>
+            <div class="acc"><b>236540</b><span>ReteFuente · Crédito</span></div>
+            <div class="acc"><b>220505</b><span>Proveedores · Crédito</span></div>
+            <div class="acc"><b>523550</b><span>Fletes · Débito</span></div>
+            <div class="acc"><b>519530</b><span>Papelería · Débito</span></div>
+            <div class="acc"><b>240810</b><span>IVA descontable · Débito</span></div>
+            <div class="acc"><b>236540</b><span>ReteFuente · Crédito</span></div>
+            <div class="acc"><b>220505</b><span>Proveedores · Crédito</span></div>
+            <div class="acc"><b>523550</b><span>Fletes · Débito</span></div>
+          </div></div>
+        </div>
+        <p class="gate-note">Datos de ejemplo.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="story" id="historia" aria-label="Cómo funciona">
+    <div class="wrap pin">
+      <div class="captions">
+        <div class="cap" data-i="0"><span class="n">1</span><h3>La factura llega al correo.</h3></div>
+        <div class="cap" data-i="1"><span class="n">2</span><h3>El Gestor lee el XML.</h3></div>
+        <div class="cap" data-i="2"><span class="n">3</span><h3>El asiento queda listo.</h3></div>
+        <div class="bar" aria-hidden="true"><i id="bar"></i></div>
+        <p class="sample">Factura y asiento de ejemplo.</p>
+      </div>
+
+      <div class="stage">
+        <div class="mail" id="s-mail">
+          <span class="av" aria-hidden="true">DA</span>
+          <div><b>Distribuidora Andina S.A.S.</b><span>FE-4821.zip · Factura electrónica</span></div>
+          <em>Nueva</em>
+        </div>
+        <div class="doc num" id="s-doc">
+          <div class="head">Factura FE-4821 <span>NIT 900.482.117-3</span></div>
+          <div class="r" data-k="0"><span>Resmas papel carta × 50</span><span>1.250.000</span></div>
+          <div class="r" data-k="0"><span>Tóner impresora × 4</span><span>840.000</span></div>
+          <div class="r" data-k="1"><span>IVA 19 %</span><span>397.100</span></div>
+          <div class="r t" data-k="2"><span>Total</span><span>2.487.100</span></div>
+        </div>
+        <div class="ledger" id="s-ledger">
+          <div class="head">Registro contable</div>
+          <div class="tbl"><table>
+            <tr data-k="0"><td class="a">519530</td><td class="d">Papelería</td><td class="v">2.090.000</td><td class="v"></td></tr>
+            <tr data-k="1"><td class="a">240810</td><td class="d">IVA descontable</td><td class="v">397.100</td><td class="v"></td></tr>
+            <tr data-k="2"><td class="a">236540</td><td class="d">ReteFuente 2,5 %</td><td class="v"></td><td class="v">52.250</td></tr>
+            <tr data-k="3"><td class="a">220505</td><td class="d">Proveedores</td><td class="v"></td><td class="v">2.434.850</td></tr>
+            <tr class="sum" data-k="4"><td></td><td>Sumas iguales</td><td class="v">2.487.100</td><td class="v">2.487.100</td></tr>
+          </table></div>
+          <div class="chips"><span class="chip ok">Cuadrado</span><span class="chip gold">Listo para World Office</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="statement">
+    <div class="wrap"><p id="frase">Tu equipo deja de digitar facturas y empieza a revisarlas.</p></div>
+  </section>
+
+  <section class="points" aria-label="Lo esencial">
+    <div class="wrap grid">
+      <div class="point"><h3>Lee el XML</h3><p>NIT, CUFE, valores e impuestos, tal como los reporta la DIAN.</p></div>
+      <div class="point"><h3>Aprende tus cuentas</h3><p>Cada producto va a la cuenta que tú definiste.</p></div>
+      <div class="point"><h3>Varias empresas</h3><p>Cada una con su correo, sus bases y sus usuarios.</p></div>
+    </div>
+  </section>
+
+  <section class="soft" aria-label="Integraciones">
+    <div class="wrap">
+      <h2>Sigue con tu software contable.</h2>
+      <div class="marks"><b>World Office</b><b>SAP Business One</b><b>Excel</b></div>
+    </div>
+  </section>
+
+  <section class="sec" aria-label="Seguridad">
+    <div class="wrap">
+      <div class="copy">
+        <h2>Tus claves no salen de tu equipo.</h2>
+        <p>La clave del correo se cifra en tu computador y nunca llega a nuestros servidores.</p>
+        <div class="pills"><span>Equipos autorizados</span><span>Roles por usuario</span><span>Actualizaciones automáticas</span></div>
+      </div>
+      <div class="big-shield" id="big-shield" aria-hidden="true"><svg viewBox="14 7 138 145"><use href="#lion-mark" fill="currentColor"/></svg></div>
+    </div>
+  </section>
+
+  <section class="cta" id="demo">
+    <div class="wrap">
+      <div class="copy">
+        <h2>Míralo con tus facturas.</h2>
+        <p>Demo de 30 minutos en línea. Cotización según el número de empresas.</p>
+      </div>
+      <form id="demo-form" novalidate>
+        <div id="form-fields" style="display:grid;gap:16px">
+          <div class="two">
+            <div class="field"><label for="f-nombre">Nombre</label><input id="f-nombre" name="nombre" autocomplete="name" required><span class="msg" hidden>Escribe tu nombre.</span></div>
+            <div class="field"><label for="f-empresa">Empresa o firma</label><input id="f-empresa" name="empresa" autocomplete="organization" required><span class="msg" hidden>Escribe el nombre de la empresa.</span></div>
+          </div>
+          <div class="two">
+            <div class="field"><label for="f-tel">Celular</label><input id="f-tel" name="tel" type="tel" inputmode="tel" autocomplete="tel" placeholder="300 123 4567" required><span class="msg" hidden>Escribe un celular de 10 dígitos.</span></div>
+            <div class="field"><label for="f-empresas">Empresas que manejas</label>
+              <select id="f-empresas" name="empresas"><option>1</option><option>2 a 5</option><option>6 a 20</option><option>Más de 20</option></select></div>
+          </div>
+          <button class="btn btn-dark" type="submit">Solicitar demo</button>
+        </div>
+        <div class="done" id="form-done" hidden>
+          <h3>Solicitud lista</h3>
+          <p id="done-msg">Envíala por WhatsApp y te escribimos para acordar la hora.</p>
+          <pre id="resumen"></pre>
+          <div class="row">
+            <a class="btn btn-gold" id="wa-link" href="#" target="_blank" rel="noopener">Enviar por WhatsApp</a>
+            <button class="btn btn-dark" type="button" id="copy">Copiar solicitud</button>
+            <button class="plain" type="button" id="editar">Editar datos</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span class="lion"><svg viewBox="14 7 138 145" aria-hidden="true"><use href="#lion-mark" fill="currentColor"/><use href="#lion-reg" fill="currentColor"/></svg><b>Lion Consulting</b></span>
+    <a href="../index.html" style="text-decoration:none">Un producto de Lion Consulting · Ver todos los servicios</a>
+  </div>
+</footer>
+
+<script>
+/* Número de WhatsApp de ventas, con indicativo y sin signos. Ej: "573001234567". */
+var WHATSAPP_VENTAS = "573208531175";
+
+(function(){
+  var root = document.documentElement;
+  var reduce = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var shortScreen = window.innerHeight < 600;
+  root.classList.add("js");
+  if (!reduce && !shortScreen) root.classList.add("live");
+
+  var hero = document.getElementById("hero");
+  requestAnimationFrame(function(){ requestAnimationFrame(function(){ hero.classList.add("ready"); }); });
+
+  /* Frase palabra por palabra */
+  var frase = document.getElementById("frase");
+  var words = frase.textContent.trim().split(/\s+/);
+  frase.textContent = "";
+  words.forEach(function(w, i){
+    var s = document.createElement("span"); s.className = "w"; s.textContent = w;
+    frase.appendChild(s); if (i < words.length - 1) frase.appendChild(document.createTextNode(" "));
+  });
+  var wordEls = frase.querySelectorAll(".w");
+
+  if (!root.classList.contains("live")) return;
+
+  /* Escudo grande: se revela una vez al entrar */
+  var big = document.getElementById("big-shield");
+  if ("IntersectionObserver" in window) {
+    var io = new IntersectionObserver(function(es){ es.forEach(function(e){ if (e.isIntersecting){ big.classList.add("in"); io.disconnect(); } }); }, { rootMargin: "0px 0px -15% 0px" });
+    io.observe(big);
+  } else { big.classList.add("in"); }
+
+  /* Historia fija: el progreso del scroll arma el asiento */
+  var story = document.getElementById("historia");
+  var caps = story.querySelectorAll(".cap");
+  var bar = document.getElementById("bar");
+  var mail = document.getElementById("s-mail"), doc = document.getElementById("s-doc"), ledger = document.getElementById("s-ledger");
+  var docRows = doc.querySelectorAll(".r"), ledRows = ledger.querySelectorAll("tr"), chips = ledger.querySelectorAll(".chip");
+
+  function clamp(v){ return v < 0 ? 0 : v > 1 ? 1 : v; }
+  function seg(p, a, b){ return clamp((p - a) / (b - a)); }
+  function easeOut(t){ return 1 - Math.pow(1 - t, 4); }
+  function place(el, o, y, s){ el.style.opacity = o; el.style.transform = "translate3d(0," + y.toFixed(1) + "px,0) scale(" + (s || 1).toFixed(3) + ")"; }
+
+  function renderStory(){
+    var r = story.getBoundingClientRect();
+    var total = story.offsetHeight - window.innerHeight;
+    var p = clamp(-r.top / (total || 1));
+    bar.style.transform = "scaleX(" + p.toFixed(3) + ")";
+    var stepI = p < .33 ? 0 : p < .66 ? 1 : 2;
+    caps.forEach(function(c, i){ c.classList.toggle("on", i === stepI); });
+
+    var a = easeOut(seg(p, 0, .14));
+    var fade = easeOut(seg(p, .72, .88));
+    place(mail, a * (1 - fade * .65), (1 - a) * 28);
+    var b = easeOut(seg(p, .12, .3));
+    place(doc, b, (1 - b) * -20, .95 + b * .05);
+    var hlK = p < .36 ? -1 : p < .46 ? 0 : p < .55 ? 1 : p < .64 ? 2 : -1;
+    docRows.forEach(function(row){ row.classList.toggle("hl", +row.dataset.k === hlK); });
+    var c = easeOut(seg(p, .34, .46));
+    place(ledger, c, (1 - c) * 36, .97 + c * .03);
+    ledRows.forEach(function(tr){
+      var k = +tr.dataset.k, t = easeOut(seg(p, .42 + k * .07, .5 + k * .07));
+      tr.style.opacity = (.1 + t * .9).toFixed(3); tr.style.transform = "translate3d(" + ((1 - t) * 14).toFixed(1) + "px,0,0)";
+    });
+    chips.forEach(function(ch, i){ var t = easeOut(seg(p, .8 + i * .05, .88 + i * .05)); place(ch, .12 + t * .88, (1 - t) * 8, .95 + t * .05); });
+  }
+
+  function renderFrase(){
+    var r = frase.getBoundingClientRect(), vh = window.innerHeight;
+    var p = clamp((vh * .85 - r.top) / (vh * .55));
+    var lit = Math.round(p * wordEls.length);
+    wordEls.forEach(function(w, i){ w.classList.toggle("lit", i < lit); });
+  }
+
+  var ticking = false;
+  function onScroll(){ if (!ticking){ ticking = true; requestAnimationFrame(function(){ renderStory(); renderFrase(); ticking = false; }); } }
+  window.addEventListener("scroll", onScroll, { passive: true });
+  window.addEventListener("resize", onScroll);
+  renderStory(); renderFrase();
+})();
+
+(function(){
+  /* Formulario de demo */
+  var form = document.getElementById("demo-form");
+  var fields = document.getElementById("form-fields"), done = document.getElementById("form-done");
+  var resumen = document.getElementById("resumen"), wa = document.getElementById("wa-link");
+  function setErr(input, bad){
+    var f = input.closest(".field"); f.classList.toggle("err", bad);
+    f.querySelector(".msg").hidden = !bad; input.setAttribute("aria-invalid", bad ? "true" : "false");
+  }
+  form.addEventListener("submit", function(e){
+    e.preventDefault();
+    var n = form.nombre, em = form.empresa, t = form.tel;
+    var checks = [[n, !n.value.trim()], [em, !em.value.trim()], [t, t.value.replace(/\D/g, "").length < 10]];
+    var first = null;
+    checks.forEach(function(x){ setErr(x[0], x[1]); if (x[1] && !first) first = x[0]; });
+    if (first) { first.focus(); return; }
+    var texto = "Hola, quiero agendar una demo del Gestor de Facturas.\n" +
+      "Nombre: " + n.value.trim() + "\nEmpresa o firma: " + em.value.trim() +
+      "\nCelular: " + t.value.trim() + "\nEmpresas que manejo: " + form.empresas.value;
+    resumen.textContent = texto;
+    if (WHATSAPP_VENTAS) { wa.href = "https://wa.me/" + WHATSAPP_VENTAS + "?text=" + encodeURIComponent(texto); wa.hidden = false; }
+    else { wa.hidden = true; document.getElementById("done-msg").textContent = "Copia la solicitud y envíala a nuestro equipo comercial."; }
+    fields.hidden = true; done.hidden = false;
+  });
+  document.getElementById("editar").addEventListener("click", function(){ done.hidden = true; fields.hidden = false; form.nombre.focus(); });
+  document.getElementById("copy").addEventListener("click", function(){
+    var btn = this;
+    function ok(){ btn.textContent = "Solicitud copiada"; setTimeout(function(){ btn.textContent = "Copiar solicitud"; }, 2000); }
+    function fallback(){ var r = document.createRange(); r.selectNodeContents(resumen); var s = getSelection(); s.removeAllRanges(); s.addRange(r); }
+    try { navigator.clipboard.writeText(resumen.textContent).then(ok, fallback); } catch (e) { fallback(); }
+  });
+})();
+</script>
+</body>
+</html>
